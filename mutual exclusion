@@ -1,0 +1,75 @@
+import threading
+import time
+
+class RicartAgrawala:
+    def __init__(self, num_processes):
+        self.num_processes = num_processes
+        self.requesting = [False] * num_processes
+        self.reply_received = [False] * num_processes
+        self.critical_section = False
+        self.queue = []
+
+    def request_cs(self, pid):
+        self.requesting[pid] = True
+        for i in range(self.num_processes):
+            if i != pid:
+                self.send_message(pid, i, "REQUEST")
+
+        while not self.all_replies(pid):
+            time.sleep(0.1)
+
+        self.enter_critical_section()
+
+    def release_cs(self, pid):
+        self.critical_section = False
+        self.requesting[pid] = False
+
+        while self.queue:
+            next_pid = self.queue.pop(0)
+            self.reply_received[next_pid] = False
+            self.send_message(pid, next_pid, "REPLY")
+
+    def send_message(self, sender, receiver, message):
+        print(f"Process {sender} sends {message} to Process {receiver}")
+
+    def receive_message(self, sender, receiver, message):
+        if message == "REQUEST":
+            if not self.critical_section and not self.requesting[sender]:
+                self.reply(sender)
+            else:
+                self.queue.append(sender)
+        elif message == "REPLY":
+            self.reply_received[sender] = True
+
+    def reply(self, pid):
+        self.reply_received[pid] = True
+        self.send_message(pid, pid, "REPLY")
+
+    def all_replies(self, pid):
+        return all(self.reply_received[i] or not self.requesting[i] for i in range(self.num_processes) if i != pid)
+
+    def enter_critical_section(self):
+        self.critical_section = True
+        print(f"Process {threading.current_thread().name} enters critical section")
+        time.sleep(1)  # Simulating critical section execution time
+        print(f"Process {threading.current_thread().name} exits critical section")
+
+def process_func(ra, pid):
+    ra.request_cs(pid)
+    time.sleep(2)  # Simulating work outside critical section
+    ra.release_cs(pid)
+
+if __name__ == "__main__":
+    num_processes = 5
+    ra = RicartAgrawala(num_processes)
+    processes = []
+
+    for i in range(num_processes):
+        t = threading.Thread(target=process_func, args=(ra, i), name=f"Process-{i}")
+        processes.append(t)
+
+    for t in processes:
+        t.start()
+
+    for t in processes:
+        t.join()
