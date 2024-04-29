@@ -1,0 +1,37 @@
+class Process:
+    def __init__(self, pid):
+        self.pid = pid
+        self.active = True
+
+class ElectionAlgorithm:
+    def __init__(self, processes):
+        self.processes = processes
+
+    def send_message(self, sender, receiver, message):
+        print(f"Process {sender.pid} sends {message} to Process {receiver.pid}")
+
+    def bully_election(self, failed_process):
+        highest_pid = max(p.pid for p in self.processes)
+        election_started = False
+
+        for process in self.processes:
+            if process.pid > failed_process.pid and process.active:
+                self.send_message(failed_process, process, "ELECTION")
+                election_started = True
+
+        if not election_started:
+            print(f"Process {failed_process.pid} is the highest active process. Declares itself as the coordinator.")
+
+        for process in self.processes:
+            if process.pid < failed_process.pid and process.active:
+                self.send_message(failed_process, process, "OK")
+                self.send_message(process, failed_process, "COORDINATOR")
+
+# Example usage
+if __name__ == "__main__":
+    processes = [Process(1), Process(2), Process(3), Process(4), Process(5)]
+    # Process 4 fails
+    processes[3].active = False
+
+    election_algo = ElectionAlgorithm(processes)
+    election_algo.bully_election(processes[3])  # Initiating election after process 4 fails
