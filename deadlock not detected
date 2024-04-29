@@ -1,0 +1,60 @@
+class Process:
+    def __init__(self, pid, max_resources):
+        self.pid = pid
+        self.max_resources = max_resources
+        self.allocated_resources = [0] * len(max_resources)
+        self.requested_resources = [0] * len(max_resources)
+
+class DeadlockManager:
+    def __init__(self, processes, available_resources):
+        self.processes = processes
+        self.num_resources = len(available_resources)
+        self.available_resources = available_resources
+
+    def detect_deadlock(self):
+        work = self.available_resources[:]
+        finish = [False] * len(self.processes)
+
+        # Find an unfinished process that can complete with current available resources
+        while True:
+            found = False
+            for i, process in enumerate(self.processes):
+                if not finish[i] and all(process.requested_resources[j] <= work[j] for j in range(self.num_resources)):
+                    found = True
+                    work = [work[j] + process.allocated_resources[j] for j in range(self.num_resources)]
+                    finish[i] = True
+
+            if not found:
+                break
+
+        return not all(finish)
+
+    def resolve_deadlock(self):
+        if self.detect_deadlock():
+            print("Deadlock is detected.")
+            # Try to release resources from processes
+            for process in self.processes:
+                for i in range(self.num_resources):
+                    self.available_resources[i] += process.allocated_resources[i]
+                    process.allocated_resources[i] = 0
+        else:
+            print("No deadlock detected.")
+
+# Example usage
+if __name__ == "__main__":
+    processes = [
+        Process(0, [5, 5, 5]),
+        Process(1, [4, 4, 4]),
+        Process(2, [3, 3, 3]),
+    ]
+
+    available_resources = [2, 2, 2]
+
+    # All processes request resources from the next process in a circular manner
+    for i in range(len(processes)):
+        for j in range(len(processes[0].max_resources)):
+            next_pid = (i + 1) % len(processes)
+            processes[i].requested_resources[j] = processes[next_pid].max_resources[j]
+
+    deadlock_manager = DeadlockManager(processes, available_resources)
+    deadlock_manager.resolve_deadlock()
